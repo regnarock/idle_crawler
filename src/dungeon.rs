@@ -7,14 +7,19 @@ use bevy_inspector_egui::{
     inspector_options::{std_options::NumberDisplay, ReflectInspectorOptions},
     InspectorOptions,
 };
+use leafwing_input_manager::{
+    action_state::ActionState, input_map::InputMap, plugin::InputManagerPlugin, Actionlike,
+    InputManagerBundle,
+};
 
-use crate::GameState;
+use crate::{loading::TextureAssets, GameState};
 
 pub struct DungeonPlugin;
 
 impl Plugin for DungeonPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Playing), setup)
+        app.add_plugins(InputManagerPlugin::<CameraMoves>::default())
+            .add_systems(OnEnter(GameState::Playing), setup)
             .insert_resource(DungeonConfig {
                 size: 2.0,
                 distance_field: 6.0,
@@ -22,9 +27,11 @@ impl Plugin for DungeonPlugin {
                 left: 0,
                 right: 0,
                 center: 1,
+                center_center: 1,
                 light_x: 0.0,
                 light_y: 0.0,
                 light_z: 2.0,
+                debug: 0,
             })
             .insert_resource(AmbientLight {
                 color: Color::WHITE,
@@ -36,8 +43,23 @@ impl Plugin for DungeonPlugin {
                 update_walls_visibility.run_if(in_state(GameState::Playing)),
             )
             .add_systems(Update, draw_debug.run_if(in_state(GameState::Playing)))
-            .add_systems(Update, ui_example.run_if(in_state(GameState::Playing)));
+            .add_systems(Update, ui_example.run_if(in_state(GameState::Playing)))
+            .add_systems(
+                Update,
+                update_camera_moves.run_if(in_state(GameState::Playing)),
+            );
     }
+}
+
+// This is the list of "things in the game I want to be able to do based on input"
+#[derive(Actionlike, PartialEq, Eq, Hash, Clone, Copy, Debug, Reflect)]
+pub enum CameraMoves {
+    Left,
+    Right,
+    // Up,
+    // Down,
+    // Forward,
+    // Backward,
 }
 
 #[derive(Resource, Reflect, InspectorOptions)]
@@ -60,6 +82,10 @@ pub struct DungeonConfig {
     pub right: usize,
     #[inspector(min = 0, max = 1, display = NumberDisplay::Slider)]
     pub center: usize,
+    #[inspector(min = 0, max = 1, display = NumberDisplay::Slider)]
+    pub center_center: usize,
+    #[inspector(min = 0, max = 1, display = NumberDisplay::Slider)]
+    pub debug: usize,
 }
 
 /// Helper marker to identify walls in the scene.
@@ -73,13 +99,13 @@ pub struct DungeonConfig {
 /// Imagine a cube where each face is a wall with a unique `WallMarker<ID>`:
 ///
 /// ```plaintext
-///    +----------+
-///    | \   5  / |
-///    |  +----+  |
-/// 4->|  |  1 |  |<-2
-///    |  +----+  |
-///    | /   3  \ |
-///    +----------+
+///     + -----+----------+----- +
+/// 10 -> \    | \   5  / |    / <- 11
+///         +--|  +----+  |--+
+///    9 -> |  |4 |  1 | 2|  | <- 6
+///         +--|  +----+  |--+
+///  8 -> /    | /   3  \ |    \ <- 7
+///     +------+----------+------+
 /// ```
 /// In this cube, each face could be a separate entity with its own `WallMarker<ID>`.
 
@@ -90,27 +116,61 @@ pub struct Layout {
 }
 
 pub enum Position {
-    Center,  // 1
-    Right,   // 2
-    Floor,   // 3
-    Left,    // 4
-    Ceiling, // 5
+    Center,       // 1
+    FrontRight,   // 2
+    Floor,        // 3
+    FrontLeft,    // 4
+    Ceiling,      // 5
+    Right,        // 6
+    FloorRight,   // 7
+    FloorLeft,    // 8
+    Left,         // 9
+    CeilingLeft,  // 10
+    CeilingRight, // 11
+}
+
+#[derive(Component)]
+pub struct DungeonCamera;
+
+pub fn update_camera_moves(
+    mut query: Query<(&ActionState<CameraMoves>, &mut Transform), With<DungeonCamera>>,
+    time: Res<Time>,
+) {
+    let (action_state, mut transform) = query.single_mut();
+    // Each action has a button-like state of its own that you can check
+    if action_state.pressed(CameraMoves::Left) {
+        transform.translation.x -= time.delta_seconds();
+    } else if action_state.pressed(CameraMoves::Right) {
+        transform.translation.x += time.delta_seconds();
+    }
 }
 
 pub fn setup(
     mut commands: Commands,
     config: Res<DungeonConfig>,
-    assets: Res<AssetServer>,
+    assets: Res<TextureAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut gizmo_config: ResMut<GizmoConfig>,
     //mut ambient_light: ResMut<AmbientLight>,
 ) {
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(0., 0., config.distance_field)
-            .looking_at(Vec3::ZERO, Vec3::Y),
-        ..default()
-    });
+    commands.spawn((
+        Camera3dBundle {
+            transform: Transform::from_xyz(0., 0., config.distance_field)
+                .looking_at(Vec3::ZERO, Vec3::Y),
+            ..default()
+        },
+        InputManagerBundle::<CameraMoves> {
+            // Stores "which actions are currently pressed"
+            action_state: ActionState::default(),
+            // Describes how to convert from player inputs into those actions
+            input_map: InputMap::new([
+                (KeyCode::A, CameraMoves::Left),
+                (KeyCode::D, CameraMoves::Right),
+            ]),
+        },
+        DungeonCamera,
+    ));
     //    ambient_light.brightness = config.brightness;
     commands.spawn(PointLightBundle {
         transform: Transform::from_xyz(0., 0., config.distance_field),
@@ -119,17 +179,14 @@ pub fn setup(
 
     //gizmo_config.depth_bias = -1.0;
 
-    let wall: Handle<Image> = assets.load("textures/Wall_2.png");
-    let wall_normal: Handle<Image> = assets.load("textures/Wall_2_normal.png");
-    let floor: Handle<Image> = assets.load("textures/floor.png");
     let wall_material = materials.add(StandardMaterial {
-        base_color_texture: Some(wall),
-        normal_map_texture: Some(wall_normal),
+        base_color_texture: Some(assets.wall.clone()),
+        normal_map_texture: Some(assets.wall_normal.clone()),
         perceptual_roughness: 1.,
         ..Default::default()
     });
     let floor_material = materials.add(StandardMaterial {
-        base_color_texture: Some(floor),
+        base_color_texture: Some(assets.floor.clone()),
         perceptual_roughness: 0.9,
         ..Default::default()
     });
@@ -140,78 +197,39 @@ pub fn setup(
 
     // Depth 0
 
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh.clone(),
-            transform: Transform::from_xyz(0., 0., 0.),
-            material: wall_material.clone(),
-            ..default()
-        },
-        Layout {
-            depth: 0,
-            position: Position::Center,
-        },
-    ));
+    spawn_center(
+        &mut commands,
+        config.distance_field / 4.0,
+        config.size,
+        mesh.clone(),
+        wall_material.clone(),
+        floor_material.clone(),
+        0,
+    );
+
+    spawn_center(
+        &mut commands,
+        config.distance_field / 4.0,
+        config.size,
+        mesh.clone(),
+        wall_material.clone(),
+        floor_material.clone(),
+        1,
+    );
+
+    spawn_center(
+        &mut commands,
+        config.distance_field / 4.0,
+        config.size,
+        mesh.clone(),
+        wall_material.clone(),
+        floor_material.clone(),
+        2,
+    );
     let center = Vec3::new(0.0, 0.0, 0.0);
     let square = Vec2::splat(config.size);
-    let flattened_square = square * Vec2::new(1.0, config.distance_field / 4.);
+    let flattened_square = square * Vec2::new(1.0, config.distance_field / 4.0);
 
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh.clone(),
-            transform: Transform::from_translation(Vec3::new(
-                flattened_square.x * 0.5,
-                0.0,
-                flattened_square.y * 0.5,
-            ))
-            .with_scale(Vec3::new(config.distance_field / 4., 1.0, 1.0))
-            .with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
-            material: wall_material.clone(),
-            ..default()
-        },
-        Layout {
-            depth: 0,
-            position: Position::Right,
-        },
-    ));
-
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh.clone(),
-            transform: Transform::from_translation(Vec3::new(
-                flattened_square.x * -0.5,
-                0.0,
-                flattened_square.y * 0.5,
-            ))
-            .with_scale(Vec3::new(config.distance_field / 4., 1.0, 1.0))
-            .with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
-            material: wall_material.clone(),
-            ..default()
-        },
-        Layout {
-            depth: 0,
-            position: Position::Left,
-        },
-    ));
-
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh.clone(),
-            transform: Transform::from_translation(
-                center.move_by(Direction::Down, flattened_square),
-            )
-            .with_scale(Vec3::new(1.0, config.distance_field / 4., 1.0))
-            .with_rotation(Quat::from_rotation_x(-FRAC_PI_2)),
-            material: floor_material.clone(),
-            ..default()
-        },
-        Layout {
-            depth: 0,
-            position: Position::Floor,
-        },
-    ));
-
-    // Depth 1
     commands.spawn((
         PbrBundle {
             mesh: mesh.clone(),
@@ -222,7 +240,7 @@ pub fn setup(
             ..default()
         },
         Layout {
-            depth: 1,
+            depth: 0,
             position: Position::Left,
         },
     ));
@@ -236,7 +254,7 @@ pub fn setup(
             ..default()
         },
         Layout {
-            depth: 1,
+            depth: 0,
             position: Position::Right,
         },
     ));
@@ -254,8 +272,8 @@ pub fn setup(
             ..default()
         },
         Layout {
-            depth: 1,
-            position: Position::Floor, // + Position::Left
+            depth: 0,
+            position: Position::FloorLeft,
         },
     ));
     commands.spawn((
@@ -272,8 +290,91 @@ pub fn setup(
             ..default()
         },
         Layout {
-            depth: 1,
-            position: Position::Floor, // + Position::Right
+            depth: 0,
+            position: Position::FloorRight,
+        },
+    ));
+}
+
+fn spawn_center(
+    commands: &mut Commands<'_, '_>,
+    distance_field: f32,
+    size: f32,
+    mesh: Handle<Mesh>,
+    wall_material: Handle<StandardMaterial>,
+    floor_material: Handle<StandardMaterial>,
+    depth: usize,
+) {
+    let center = Vec3::new(0.0, 0.0, distance_field * depth as f32 * -2.);
+    let square = Vec2::splat(size);
+    let flattened_square = square * Vec2::new(1.0, distance_field);
+
+    commands.spawn((
+        PbrBundle {
+            mesh: mesh.clone(),
+            transform: Transform::from_translation(center),
+            material: wall_material.clone(),
+            ..default()
+        },
+        Layout {
+            depth,
+            position: Position::Center,
+        },
+    ));
+
+    commands.spawn((
+        PbrBundle {
+            mesh: mesh.clone(),
+            transform: Transform::from_translation(Vec3::new(
+                flattened_square.x * 0.5,
+                0.0,
+                flattened_square.y * 0.5 + center.z,
+            ))
+            .with_scale(Vec3::new(distance_field, 1.0, 1.0))
+            .with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+            material: wall_material.clone(),
+            ..default()
+        },
+        Layout {
+            depth,
+            position: Position::FrontRight,
+        },
+    ));
+
+    commands.spawn((
+        PbrBundle {
+            mesh: mesh.clone(),
+            transform: Transform::from_translation(Vec3::new(
+                flattened_square.x * -0.5,
+                0.0,
+                flattened_square.y * 0.5 + center.z,
+            ))
+            .with_scale(Vec3::new(distance_field, 1.0, 1.0))
+            .with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
+            material: wall_material.clone(),
+            ..default()
+        },
+        Layout {
+            depth,
+            position: Position::FrontLeft,
+        },
+    ));
+
+    commands.spawn((
+        PbrBundle {
+            mesh: mesh.clone(),
+            transform: Transform::from_translation(
+                center.move_by(Direction::Down, flattened_square),
+            )
+            //.with_translation(Vec3::new(0.0, 0.0, z))
+            .with_scale(Vec3::new(1.0, distance_field, 1.0))
+            .with_rotation(Quat::from_rotation_x(-FRAC_PI_2)),
+            material: floor_material.clone(),
+            ..default()
+        },
+        Layout {
+            depth,
+            position: Position::Floor,
         },
     ));
 }
@@ -301,27 +402,17 @@ pub fn update_walls_visibility(
     for (wall, layout, visibility) in q_walls.iter_mut() {
         if layout.depth == 0 {
             // take care of depth 0
-            match *layout {
-                Layout {
-                    position: Position::Center,
-                    ..
-                } => update_visibility(visibility, config.center == 0),
-                Layout {
-                    position: Position::Right,
-                    ..
-                } => update_visibility(visibility, config.right == 0),
-                Layout {
-                    position: Position::Floor,
-                    ..
-                } => {}
-                Layout {
-                    position: Position::Left,
-                    ..
-                } => update_visibility(visibility, config.left == 0),
-                Layout {
-                    position: Position::Ceiling,
-                    ..
-                } => {}
+            match layout.position {
+                Position::Center => update_visibility(visibility, config.center == 0),
+                Position::FrontRight => update_visibility(visibility, config.right == 0),
+                Position::FrontLeft => update_visibility(visibility, config.left == 0),
+                _ => {}
+            }
+        } else if layout.depth == 1 {
+            // take care of depth 1
+            match layout.position {
+                Position::Center => update_visibility(visibility, config.center_center == 0),
+                _ => {}
             }
         }
     }
@@ -383,19 +474,60 @@ pub fn draw_debug(
     config: Res<DungeonConfig>,
     mut q_walls_transform: Query<&mut Transform>,
 ) {
-    let mut center = Vec3::new(0.0, 0.0, 0.0);
+    if config.debug == 0 {
+        return;
+    }
+    let size = config.size;
+    let distance_field = config.distance_field;
+    let left = config.left == 1;
+    let right = config.right == 1;
+    let center = config.center == 1;
+    let center_center = config.center_center == 1;
 
-    let square = Vec2::splat(config.size);
+    display_center(
+        size,
+        distance_field,
+        &mut gizmos,
+        left,
+        right,
+        center,
+        center_center,
+        0,
+    );
+}
+
+fn display_center(
+    size: f32,
+    distance_field: f32,
+    gizmos: &mut Gizmos<'_>,
+    has_left: bool,
+    has_right: bool,
+    has_center: bool,
+    has_center_center: bool,
+    depth: usize,
+) {
+    let mut center = Vec3::new(0.0, 0.0, distance_field * depth as f32 / -2.);
+
+    let square = Vec2::splat(size);
     let half = |s: Vec2| s * Vec2::new(0.5, 1.0);
-    let flattened_square = square * Vec2::new(1.0, config.distance_field / 4.);
+    let flattened_square = square * Vec2::new(1.0, distance_field / 4.);
 
-    // Debug only
-    // if time.elapsed_seconds() % 6.0 > 3.0 {
-    //     center.x = (time.elapsed_seconds() * 0.5).sin() * 2.0;
-    // }
     // Layer 1
     // middle of the screen
-    gizmos.rect(center, Quat::IDENTITY, square, Color::BLUE);
+    if has_center {
+        gizmos.rect(center, Quat::IDENTITY, square, Color::BLUE);
+    } else if depth < 2 {
+        display_center(
+            size,
+            distance_field,
+            gizmos,
+            true,
+            true,
+            has_center_center,
+            false,
+            depth + 1,
+        );
+    }
 
     // ceiling
     gizmos.rect(
@@ -414,7 +546,7 @@ pub fn draw_debug(
     );
     // might be hidden left/right
     {
-        if config.left == 0 {
+        if !has_left {
             // middle left
             gizmos.rect(
                 center.move_by(Direction::HalfShiftLeft, square),
@@ -453,7 +585,7 @@ pub fn draw_debug(
                 Color::GREEN,
             );
         }
-        if config.right == 0 {
+        if !has_right {
             // middle right
             gizmos.rect(
                 center.move_by(Direction::HalfShiftRight, square),
