@@ -37,7 +37,7 @@ pub struct DungeonConfig {
     pub light_x: f32,
     #[inspector(min = -10.0, max = 10.0, display = NumberDisplay::Slider)]
     pub light_y: f32,
-    #[inspector(min = -10.0, max = 10.0, display = NumberDisplay::Slider)]
+    #[inspector(min = -20.0, max = 10.0, display = NumberDisplay::Slider)]
     pub light_z: f32,
 
     #[inspector(min = 0, max = 1, display = NumberDisplay::Slider)]

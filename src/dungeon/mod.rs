@@ -98,6 +98,11 @@ pub fn setup(
         perceptual_roughness: 0.9,
         ..Default::default()
     });
+    let ceilling_material = materials.add(StandardMaterial {
+        base_color_texture: Some(assets.ceilling.clone()),
+        perceptual_roughness: 0.9,
+        ..Default::default()
+    });
     let mesh = meshes.add(Mesh::from(shape::Quad::new(Vec2::new(
         config.size,
         config.size,
@@ -112,6 +117,7 @@ pub fn setup(
         mesh.clone(),
         wall_material.clone(),
         floor_material.clone(),
+        ceilling_material.clone(),
         1,
     );
 
@@ -122,6 +128,7 @@ pub fn setup(
         mesh.clone(),
         wall_material.clone(),
         floor_material.clone(),
+        ceilling_material.clone(),
         2,
     );
 
@@ -132,6 +139,7 @@ pub fn setup(
         mesh.clone(),
         wall_material.clone(),
         floor_material.clone(),
+        ceilling_material.clone(),
         3,
     );
     let center = Vec3::new(0.0, 0.0, 0.0);
@@ -202,6 +210,42 @@ pub fn setup(
             position: Position::FloorRight,
         },
     ));
+    commands.spawn((
+        PbrBundle {
+            mesh: mesh.clone(),
+            transform: Transform::from_translation(
+                center
+                    .move_by(MoveDirection::ShiftLeft, flattened_square)
+                    .move_by(MoveDirection::Up, flattened_square),
+            )
+            .with_rotation(Quat::from_rotation_x(FRAC_PI_2))
+            .with_scale(Vec3::new(1.0, flattened_square.y / 2., 1.0)),
+            material: ceilling_material.clone(),
+            ..default()
+        },
+        Layout {
+            depth: 0,
+            position: Position::CeilingLeft,
+        },
+    ));
+    commands.spawn((
+        PbrBundle {
+            mesh: mesh.clone(),
+            transform: Transform::from_translation(
+                center
+                    .move_by(MoveDirection::ShiftRight, flattened_square)
+                    .move_by(MoveDirection::Up, flattened_square),
+            )
+            .with_rotation(Quat::from_rotation_x(FRAC_PI_2))
+            .with_scale(Vec3::new(1.0, flattened_square.y / 2., 1.0)),
+            material: ceilling_material.clone(),
+            ..default()
+        },
+        Layout {
+            depth: 0,
+            position: Position::CeilingRight,
+        },
+    ));
 }
 
 fn spawn_center(
@@ -211,6 +255,7 @@ fn spawn_center(
     mesh: Handle<Mesh>,
     wall_material: Handle<StandardMaterial>,
     floor_material: Handle<StandardMaterial>,
+    ceilling_material: Handle<StandardMaterial>,
     depth: usize,
 ) {
     let mut z = 0.;
@@ -291,6 +336,22 @@ fn spawn_center(
         Layout {
             depth,
             position: Position::Floor,
+        },
+    ));
+    commands.spawn((
+        PbrBundle {
+            mesh: mesh.clone(),
+            transform: Transform::from_translation(
+                center.move_by(MoveDirection::Up, flattened_square),
+            )
+            .with_scale(Vec3::new(1.0, flattened_square.y / scale_factor, 1.0))
+            .with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
+            material: ceilling_material.clone(),
+            ..default()
+        },
+        Layout {
+            depth,
+            position: Position::Ceiling,
         },
     ));
 }

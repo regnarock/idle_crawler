@@ -35,4 +35,6 @@ pub struct TextureAssets {
     pub wall_normal: Handle<Image>,
     #[asset(path = "textures/floor.png")]
     pub floor: Handle<Image>,
+    #[asset(path = "textures/Brick_1.png")]
+    pub ceilling: Handle<Image>,
 }
