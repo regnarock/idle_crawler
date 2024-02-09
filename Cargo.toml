@@ -57,10 +57,13 @@ rand = { version = "0.8.3" }
 webbrowser = { version = "0.8", features = ["hardened"] }
 bevy-inspector-egui = { version = "0.22" }
 leafwing-input-manager = { version = "0.11.2" }
+bevy_editor_pls = "0.7.0"
 
 # keep the following in sync with Bevy's dependencies
 winit = { version = "0.28.7", default-features = false }
 image = { version = "0.24", default-features = false }
+strum = "0.26.1"
+strum_macros = "0.26.1"
 
 [build-dependencies]
 embed-resource = "1.4"

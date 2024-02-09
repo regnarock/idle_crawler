@@ -53,6 +53,7 @@ fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>) {
             },
             Menu,
             MenuStateMarker,
+            Name::new("menu"),
         ))
         .with_children(|children| {
             let button_colors = ButtonColors::default();

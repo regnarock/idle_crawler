@@ -1,19 +1,21 @@
-mod camera;
+mod camera3d;
 mod config;
-mod debug;
+mod labyrinth;
+mod surface;
 mod vec_utils;
 
-use std::f32::consts::FRAC_PI_2;
-
-use bevy::{prelude::*, window::PrimaryWindow};
+use bevy::{prelude::*, utils::HashMap, window::PrimaryWindow};
 use bevy_inspector_egui::{bevy_egui::EguiContext, egui};
 
-use crate::{loading::TextureAssets, GameState};
+use strum_macros::IntoStaticStr;
+
+use crate::GameState;
 
 use self::{
-    camera::CameraPlugin,
+    camera3d::Camera3DPlugin,
     config::{ConfigPlugin, DungeonConfig},
-    debug::DebugPlugin,
+    labyrinth::{Labyrinth, LabyrinthPlugin},
+    surface::{SpawnSurfaceCommand, SurfacePlugin},
     vec_utils::{MoveBy, MoveDirection},
 };
 
@@ -21,7 +23,7 @@ pub struct DungeonPlugin;
 
 impl Plugin for DungeonPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((CameraPlugin, ConfigPlugin, DebugPlugin))
+        app.add_plugins((Camera3DPlugin, ConfigPlugin, SurfacePlugin, LabyrinthPlugin))
             .add_systems(OnEnter(GameState::Playing), setup)
             .insert_resource(AmbientLight {
                 color: Color::WHITE,
@@ -31,7 +33,8 @@ impl Plugin for DungeonPlugin {
                 Update,
                 update_walls_visibility.run_if(in_state(GameState::Playing)),
             )
-            .add_systems(Update, ui_example.run_if(in_state(GameState::Playing)));
+            .add_systems(Update, ui_example.run_if(in_state(GameState::Playing)))
+            .register_type::<Layout>();
     }
 }
 
@@ -46,314 +49,66 @@ impl Plugin for DungeonPlugin {
 /// Imagine a cube where each face is a wall with a unique `WallMarker<ID>`:
 ///
 /// ```plaintext
-///     + -----+----------+----- +
-/// 10 -> \    | \   5  / |    / <- 11
-///         +--|--+----+--|--+
-///    9 -> |  |4 |  1 | 2|  | <- 6
-///         +--|--+----+--|--+
-///  8 -> /    | /   3  \ |    \ <- 7
-///     +------+----------+------+
+///     +----------+ <- 6
+///     | \   5  / |
+///     |  +----+  |
+///     |4 |  1 | 2|
+///     |  +----+  |
+///     | /   3  \ |
+///     +----------+
 /// ```
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct Layout {
     depth: usize,
     position: Position,
 }
 
+#[derive(Clone, Copy, Reflect, IntoStaticStr, Hash, PartialEq, Eq)]
 pub enum Position {
-    Center,       // 1
-    FrontRight,   // 2
-    Floor,        // 3
-    FrontLeft,    // 4
-    Ceiling,      // 5
-    Right,        // 6
-    FloorRight,   // 7
-    FloorLeft,    // 8
-    Left,         // 9
-    CeilingLeft,  // 10
-    CeilingRight, // 11
+    Center,  // 1
+    Right,   // 2
+    Floor,   // 3
+    Left,    // 4
+    Ceiling, // 5
+    Back,    // 6
 }
 
-pub fn setup(
-    mut commands: Commands,
-    config: Res<DungeonConfig>,
-    assets: Res<TextureAssets>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    commands.spawn(PointLightBundle {
-        transform: Transform::from_xyz(0., 0., config.distance_field),
-        ..Default::default()
-    });
-
-    let wall_material = materials.add(StandardMaterial {
-        base_color_texture: Some(assets.wall.clone()),
-        normal_map_texture: Some(assets.wall_normal.clone()),
-        perceptual_roughness: 1.,
-        ..Default::default()
-    });
-    let floor_material = materials.add(StandardMaterial {
-        base_color_texture: Some(assets.floor.clone()),
-        perceptual_roughness: 0.9,
-        ..Default::default()
-    });
-    let ceilling_material = materials.add(StandardMaterial {
-        base_color_texture: Some(assets.ceilling.clone()),
-        perceptual_roughness: 0.9,
-        ..Default::default()
-    });
-    let mesh = meshes.add(Mesh::from(shape::Quad::new(Vec2::new(
-        config.size,
-        config.size,
-    ))));
-
-    // Depth 0
-
-    spawn_center(
-        &mut commands,
-        config.distance_field / 2.,
-        config.size,
-        mesh.clone(),
-        wall_material.clone(),
-        floor_material.clone(),
-        ceilling_material.clone(),
-        1,
-    );
-
-    spawn_center(
-        &mut commands,
-        config.distance_field / 2.,
-        config.size,
-        mesh.clone(),
-        wall_material.clone(),
-        floor_material.clone(),
-        ceilling_material.clone(),
-        2,
-    );
-
-    spawn_center(
-        &mut commands,
-        config.distance_field / 2.,
-        config.size,
-        mesh.clone(),
-        wall_material.clone(),
-        floor_material.clone(),
-        ceilling_material.clone(),
-        3,
-    );
-    let center = Vec3::new(0.0, 0.0, 0.0);
-    let square = Vec2::splat(config.size);
-    let flattened_square = square * Vec2::new(1.0, config.distance_field / 2.);
-
+pub fn setup(mut commands: Commands, config: Res<DungeonConfig>, labyrinth: Res<Labyrinth>) {
     commands.spawn((
-        PbrBundle {
-            mesh: mesh.clone(),
-            transform: Transform::from_translation(
-                center.move_by(MoveDirection::ShiftLeft, flattened_square),
-            ),
-            material: wall_material.clone(),
-            ..default()
+        PointLightBundle {
+            transform: Transform::from_xyz(0., 0., config.size / 2.0 * -1.),
+            ..Default::default()
         },
-        Layout {
-            depth: 0,
-            position: Position::Left,
-        },
+        Name::new("Point Light"),
     ));
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh.clone(),
-            transform: Transform::from_translation(
-                center.move_by(MoveDirection::ShiftRight, flattened_square),
-            ),
-            material: wall_material.clone(),
-            ..default()
-        },
-        Layout {
-            depth: 0,
-            position: Position::Right,
-        },
-    ));
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh.clone(),
-            transform: Transform::from_translation(
-                center
-                    .move_by(MoveDirection::ShiftLeft, flattened_square)
-                    .move_by(MoveDirection::Down, flattened_square),
-            )
-            .with_rotation(Quat::from_rotation_x(-FRAC_PI_2))
-            .with_scale(Vec3::new(1.0, flattened_square.y / 2., 1.0)),
-            material: floor_material.clone(),
-            ..default()
-        },
-        Layout {
-            depth: 0,
-            position: Position::FloorLeft,
-        },
-    ));
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh.clone(),
-            transform: Transform::from_translation(
-                center
-                    .move_by(MoveDirection::ShiftRight, flattened_square)
-                    .move_by(MoveDirection::Down, flattened_square),
-            )
-            .with_rotation(Quat::from_rotation_x(-FRAC_PI_2))
-            .with_scale(Vec3::new(1.0, flattened_square.y / 2., 1.0)),
-            material: floor_material.clone(),
-            ..default()
-        },
-        Layout {
-            depth: 0,
-            position: Position::FloorRight,
-        },
-    ));
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh.clone(),
-            transform: Transform::from_translation(
-                center
-                    .move_by(MoveDirection::ShiftLeft, flattened_square)
-                    .move_by(MoveDirection::Up, flattened_square),
-            )
-            .with_rotation(Quat::from_rotation_x(FRAC_PI_2))
-            .with_scale(Vec3::new(1.0, flattened_square.y / 2., 1.0)),
-            material: ceilling_material.clone(),
-            ..default()
-        },
-        Layout {
-            depth: 0,
-            position: Position::CeilingLeft,
-        },
-    ));
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh.clone(),
-            transform: Transform::from_translation(
-                center
-                    .move_by(MoveDirection::ShiftRight, flattened_square)
-                    .move_by(MoveDirection::Up, flattened_square),
-            )
-            .with_rotation(Quat::from_rotation_x(FRAC_PI_2))
-            .with_scale(Vec3::new(1.0, flattened_square.y / 2., 1.0)),
-            material: ceilling_material.clone(),
-            ..default()
-        },
-        Layout {
-            depth: 0,
-            position: Position::CeilingRight,
-        },
-    ));
-}
 
-fn spawn_center(
-    commands: &mut Commands<'_, '_>,
-    distance_field: f32,
-    size: f32,
-    mesh: Handle<Mesh>,
-    wall_material: Handle<StandardMaterial>,
-    floor_material: Handle<StandardMaterial>,
-    ceilling_material: Handle<StandardMaterial>,
-    depth: usize,
-) {
-    let mut z = 0.;
-    for d in 1..depth {
-        z += distance_field.powi(d as i32) * 4.;
+    for (&(x, y), cell) in labyrinth.cells.iter() {
+        let center = Vec3::new(0.0, 0.0, -config.size);
+        let center = center.move_by(MoveDirection::Forward, config.size * y as f32);
+        let center = center.move_by(MoveDirection::ShiftRight, config.size * x as f32);
+        spawn_room(&mut commands, center, &cell.walls);
     }
-    z = -z;
-    let center = Vec3::new(0.0, 0.0, z);
-    let square = Vec2::splat(size);
-    let y = if depth > 1 {
-        distance_field.powi(depth as i32 - 1) * 2.
-    } else {
-        distance_field
-    };
-    let flattened_square = square * Vec2::new(1.0, y);
-    let scale_factor = 2.;
+}
 
-    info!("Distance {:?} / square_length {:?}", z, y,);
-
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh.clone(),
-            transform: Transform::from_translation(center),
-            material: wall_material.clone(),
-            ..default()
-        },
-        Layout {
-            depth,
-            position: Position::Center,
-        },
-    ));
-
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh.clone(),
-            transform: Transform::from_translation(
-                center.move_by(MoveDirection::Right, flattened_square),
-            )
-            .with_scale(Vec3::new(flattened_square.y / scale_factor, 1.0, 1.0))
-            .with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
-            material: wall_material.clone(),
-            ..default()
-        },
-        Layout {
-            depth,
-            position: Position::FrontRight,
-        },
-    ));
-
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh.clone(),
-            transform: Transform::from_translation(
-                center.move_by(MoveDirection::Left, flattened_square),
-            )
-            .with_scale(Vec3::new(flattened_square.y / scale_factor, 1.0, 1.0))
-            .with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
-            material: wall_material.clone(),
-            ..default()
-        },
-        Layout {
-            depth,
-            position: Position::FrontLeft,
-        },
-    ));
-
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh.clone(),
-            transform: Transform::from_translation(
-                center.move_by(MoveDirection::Down, flattened_square),
-            )
-            .with_scale(Vec3::new(1.0, flattened_square.y / scale_factor, 1.0))
-            .with_rotation(Quat::from_rotation_x(-FRAC_PI_2)),
-            material: floor_material.clone(),
-            ..default()
-        },
-        Layout {
-            depth,
-            position: Position::Floor,
-        },
-    ));
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh.clone(),
-            transform: Transform::from_translation(
-                center.move_by(MoveDirection::Up, flattened_square),
-            )
-            .with_scale(Vec3::new(1.0, flattened_square.y / scale_factor, 1.0))
-            .with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
-            material: ceilling_material.clone(),
-            ..default()
-        },
-        Layout {
-            depth,
-            position: Position::Ceiling,
-        },
-    ));
+fn spawn_room(commands: &mut Commands, center: Vec3, side_walls: &[(Position, bool); 6]) {
+    for (position, exists) in side_walls.iter() {
+        if *exists {
+            let direction = match position {
+                Position::Center => None,
+                Position::Right => Some(MoveDirection::Right),
+                Position::Left => Some(MoveDirection::Left),
+                Position::Back => Some(MoveDirection::Backward),
+                Position::Floor => Some(MoveDirection::Down),
+                Position::Ceiling => Some(MoveDirection::Up),
+            };
+            commands.add(SpawnSurfaceCommand {
+                position: center,
+                direction,
+                position_id: *position,
+            })
+        }
+    }
 }
 
 pub fn update_walls_visibility(
@@ -383,14 +138,16 @@ pub fn update_walls_visibility(
             // take care of depth 0
             match layout.position {
                 Position::Center => update_visibility(visibility, config.center == 0),
-                Position::FrontRight => update_visibility(visibility, config.right == 0),
-                Position::FrontLeft => update_visibility(visibility, config.left == 0),
+                Position::Right => update_visibility(visibility, config.right == 0),
+                Position::Left => update_visibility(visibility, config.left == 0),
                 _ => {}
             }
         } else if layout.depth == 2 {
             // take care of depth 1
             match layout.position {
                 Position::Center => update_visibility(visibility, config.center_center == 0),
+                Position::Right => update_visibility(visibility, config.right == 0),
+                Position::Left => update_visibility(visibility, config.left == 0),
                 _ => {}
             }
         }

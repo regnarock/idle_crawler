@@ -10,7 +10,6 @@ impl Plugin for ConfigPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(DungeonConfig {
             size: 2.0,
-            distance_field: 3.0,
             brightness: 30.0,
             left: 0,
             right: 0,
@@ -18,7 +17,7 @@ impl Plugin for ConfigPlugin {
             center_center: 0,
             light_x: 0.0,
             light_y: 0.0,
-            light_z: 2.0,
+            light_z: -1.0,
             debug: 0,
         })
         .register_type::<DungeonConfig>();
@@ -29,8 +28,6 @@ impl Plugin for ConfigPlugin {
 #[reflect(InspectorOptions)]
 pub struct DungeonConfig {
     pub size: f32,
-    #[inspector(min = 3.0, max = 6., display = NumberDisplay::Slider)]
-    pub distance_field: f32,
     #[inspector(min = 5.0, max = 50.0, display = NumberDisplay::Slider)]
     pub brightness: f32,
     #[inspector(min = -10.0, max = 10.0, display = NumberDisplay::Slider)]

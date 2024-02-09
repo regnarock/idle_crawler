@@ -29,12 +29,14 @@ pub struct AudioAssets {
 
 #[derive(AssetCollection, Resource)]
 pub struct TextureAssets {
-    #[asset(path = "textures/Wall_2.png")]
+    #[asset(path = "textures/IMG_3359.png")]
     pub wall: Handle<Image>,
-    #[asset(path = "textures/Wall_2_normal.png")]
+    #[asset(path = "textures/IMG_3359.png")]
     pub wall_normal: Handle<Image>,
     #[asset(path = "textures/floor.png")]
     pub floor: Handle<Image>,
     #[asset(path = "textures/Brick_1.png")]
     pub ceilling: Handle<Image>,
+    #[asset(path = "textures/HUD.png")]
+    pub hud: Handle<Image>,
 }

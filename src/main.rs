@@ -3,11 +3,10 @@
 
 use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
+use bevy::window::{PrimaryWindow, WindowResolution};
 use bevy::winit::WinitWindows;
 use bevy::DefaultPlugins;
-use bevy_inspector_egui::bevy_egui::EguiPlugin;
-use bevy_inspector_egui::DefaultInspectorConfigPlugin;
+use bevy_editor_pls::EditorPlugin;
 use idle_crawler::GamePlugin;
 use std::io::Cursor;
 use winit::window::Icon;
@@ -22,6 +21,7 @@ fn main() {
                 title: "Bevy game".to_string(), // ToDo
                 // Bind to canvas included in `index.html`
                 canvas: Some("#bevy".to_owned()),
+                resolution: WindowResolution::new(800.0, 800.0),
                 // The canvas size is constrained in index.html and build/web/styles.css
                 fit_canvas_to_parent: true,
                 // Tells wasm not to override default event handling, like F5 and Ctrl+R
@@ -30,8 +30,7 @@ fn main() {
             }),
             ..default()
         }))
-        .add_plugins(DefaultInspectorConfigPlugin)
-        .add_plugins(EguiPlugin)
+        .add_plugins(EditorPlugin::default())
         .add_plugins(GamePlugin)
         .add_systems(Startup, set_window_icon)
         .run();
