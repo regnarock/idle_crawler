@@ -4,7 +4,7 @@ mod labyrinth;
 mod surface;
 mod vec_utils;
 
-use bevy::{prelude::*, utils::HashMap, window::PrimaryWindow};
+use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_inspector_egui::{bevy_egui::EguiContext, egui};
 
 use strum_macros::IntoStaticStr;
@@ -31,7 +31,7 @@ impl Plugin for DungeonPlugin {
             })
             .add_systems(
                 Update,
-                update_walls_visibility.run_if(in_state(GameState::Playing)),
+                debug_update_position.run_if(in_state(GameState::Playing)),
             )
             .add_systems(Update, ui_example.run_if(in_state(GameState::Playing)))
             .register_type::<Layout>();
@@ -111,11 +111,10 @@ fn spawn_room(commands: &mut Commands, center: Vec3, side_walls: &[(Position, bo
     }
 }
 
-pub fn update_walls_visibility(
+pub fn debug_update_position(
     config: Res<DungeonConfig>,
     mut ambiant_light: ResMut<AmbientLight>,
     mut q_light: Query<(&mut Transform, &mut PointLight)>,
-    mut q_walls: Query<(Entity, &Layout, &mut Visibility)>,
 ) {
     ambiant_light.brightness = 0.0;
     if let Ok((mut transform, mut light)) = q_light.get_single_mut() {
@@ -123,34 +122,6 @@ pub fn update_walls_visibility(
         transform.translation.y = config.light_y;
         transform.translation.z = config.light_z;
         light.intensity = config.brightness;
-    }
-
-    let update_visibility = |mut visibility: Mut<Visibility>, conf_value: bool| {
-        *visibility = if conf_value {
-            Visibility::Hidden
-        } else {
-            Visibility::Inherited
-        };
-    };
-
-    for (wall, layout, visibility) in q_walls.iter_mut() {
-        if layout.depth == 1 {
-            // take care of depth 0
-            match layout.position {
-                Position::Center => update_visibility(visibility, config.center == 0),
-                Position::Right => update_visibility(visibility, config.right == 0),
-                Position::Left => update_visibility(visibility, config.left == 0),
-                _ => {}
-            }
-        } else if layout.depth == 2 {
-            // take care of depth 1
-            match layout.position {
-                Position::Center => update_visibility(visibility, config.center_center == 0),
-                Position::Right => update_visibility(visibility, config.right == 0),
-                Position::Left => update_visibility(visibility, config.left == 0),
-                _ => {}
-            }
-        }
     }
 }
 

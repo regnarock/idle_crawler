@@ -11,10 +11,6 @@ impl Plugin for ConfigPlugin {
         app.insert_resource(DungeonConfig {
             size: 2.0,
             brightness: 30.0,
-            left: 0,
-            right: 0,
-            center: 0,
-            center_center: 0,
             light_x: 0.0,
             light_y: 0.0,
             light_z: -1.0,
@@ -37,14 +33,6 @@ pub struct DungeonConfig {
     #[inspector(min = -20.0, max = 10.0, display = NumberDisplay::Slider)]
     pub light_z: f32,
 
-    #[inspector(min = 0, max = 1, display = NumberDisplay::Slider)]
-    pub left: usize,
-    #[inspector(min = 0, max = 1, display = NumberDisplay::Slider)]
-    pub right: usize,
-    #[inspector(min = 0, max = 1, display = NumberDisplay::Slider)]
-    pub center: usize,
-    #[inspector(min = 0, max = 1, display = NumberDisplay::Slider)]
-    pub center_center: usize,
     #[inspector(min = 0, max = 1, display = NumberDisplay::Slider)]
     pub debug: usize,
 }
