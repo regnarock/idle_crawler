@@ -2308,27 +2308,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "idle_crawler"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bevy-inspector-egui",
- "bevy_asset_loader",
- "bevy_common_assets",
- "bevy_editor_pls",
- "bevy_kira_audio",
- "embed-resource",
- "image",
- "leafwing-input-manager",
- "rand",
- "serde",
- "strum",
- "strum_macros",
- "webbrowser",
- "winit",
-]
-
-[[package]]
 name = "idna"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2397,6 +2376,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e05c02b5e89bff3b946cedeca278abc628fe811e604f027c45a8aa3cf793d0eb"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "insectivore"
+version = "0.0.1"
+dependencies = [
+ "bevy",
+ "bevy-inspector-egui",
+ "bevy_asset_loader",
+ "bevy_common_assets",
+ "bevy_editor_pls",
+ "bevy_kira_audio",
+ "embed-resource",
+ "image",
+ "leafwing-input-manager",
+ "rand",
+ "serde",
+ "strum",
+ "strum_macros",
+ "webbrowser",
+ "winit",
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 [package]
-name = "idle_crawler"
-version = "0.1.0"
+name = "insectivore"
+version = "0.0.1"
 publish = false
 authors = ["Thomas Wilgenbus <thomas.wilgenbus@gmail.com>"]
 edition = "2021"
