@@ -18,10 +18,10 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.4, 0.4, 0.4)))
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Bevy game".to_string(), // ToDo
+                title: "Insectivore".to_string(),
                 // Bind to canvas included in `index.html`
                 canvas: Some("#bevy".to_owned()),
-                resolution: WindowResolution::new(800.0, 800.0),
+                resolution: WindowResolution::new(1895.0, 1396.0),
                 // The canvas size is constrained in index.html and build/web/styles.css
                 fit_canvas_to_parent: true,
                 // Tells wasm not to override default event handling, like F5 and Ctrl+R
