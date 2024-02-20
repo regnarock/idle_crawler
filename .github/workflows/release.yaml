@@ -15,8 +15,8 @@ on:
 env:
   # heads-up: this value is used as a pattern in an sed command as a workaround for a trunk issue
   #   if you use special characters, take a look at the 'Make paths relative' step in the 'build-web' job
-  GAME_EXECUTABLE_NAME: bevy_game
-  GAME_OSX_APP_NAME: BevyGame
+  GAME_EXECUTABLE_NAME: insectivore
+  GAME_OSX_APP_NAME: Insectivore
 
 permissions:
   contents: write
@@ -220,6 +220,7 @@ jobs:
           overwrite: true
 
   build-for-iOS:
+    if: false # deactivated until we have a proper mobile build
     runs-on: macos-latest
     timeout-minutes: 30
     needs: get-version
@@ -249,6 +250,7 @@ jobs:
           overwrite: true
 
   build-for-Android:
+    if: false # deactivated until we have a proper mobile build
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: get-version
