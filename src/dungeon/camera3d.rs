@@ -8,7 +8,7 @@ use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 
 use super::config::DungeonConfig;
 use crate::{
-    loading::{GraphicalConstants, TextureAssets, UIConfig},
+    loading::{TextureAssets, UIConfig},
     ui::ScaledUiConfig,
     GameState,
 };
@@ -108,9 +108,9 @@ pub fn update_viewport(
     config: Res<ScaledUiConfig>,
     window: Query<&Window>,
 ) {
-    if !config.is_changed() {
-        return;
-    }
+    // if !config.is_changed() {
+    //     return;
+    // }
     if let (Ok(mut camera), Ok(window)) = (camera3d.get_single_mut(), window.get_single()) {
         match camera.viewport.as_mut() {
             Some(viewport) => {
@@ -119,8 +119,7 @@ pub fn update_viewport(
                     config.dungeon_view_size.1 as u32,
                 );
                 viewport.physical_position = UVec2::new(
-                    (window.width() / 2. - config.size.0 + config.dongeon_view_margin.0) as u32
-                        + config.padding as u32,
+                    (config.padding + config.dongeon_view_margin.0) as u32,
                     config.dongeon_view_margin.1 as u32,
                 );
             }
