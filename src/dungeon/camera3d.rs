@@ -1,10 +1,15 @@
-use bevy::{core_pipeline::clear_color::ClearColorConfig, prelude::*, render::camera::Viewport};
+use bevy::{
+    core_pipeline::clear_color::ClearColorConfig,
+    prelude::*,
+    render::{camera::Viewport, view::RenderLayers},
+};
 use leafwing_input_manager::orientation::Direction;
 use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 
 use super::config::DungeonConfig;
 use crate::{
-    loading::{TextureAssets, UIConfig},
+    loading::{GraphicalConstants, TextureAssets, UIConfig},
+    ui::ScaledUiConfig,
     GameState,
 };
 
@@ -22,6 +27,8 @@ impl Plugin for Camera3DPlugin {
 
 #[derive(Component)]
 pub struct DungeonCamera;
+
+pub const DUNGEON_CAMERA_LAYER: RenderLayers = RenderLayers::layer(2);
 
 #[derive(Component, Default)]
 pub enum CameraDirection {
@@ -59,9 +66,11 @@ pub fn setup(mut commands: Commands, textures: Res<TextureAssets>, config: Res<A
             VisibilityBundle::default(),
             CameraDirection::default(),
             Player,
+            DUNGEON_CAMERA_LAYER,
         ))
         .with_children(|builder| {
             builder.spawn((
+                UiCameraConfig { show_ui: false },
                 Camera3dBundle {
                     transform: Transform::from_xyz(0., 0., 3.).looking_at(Vec3::ZERO, Vec3::Y),
                     projection: Projection::Perspective(PerspectiveProjection {
@@ -83,11 +92,12 @@ pub fn setup(mut commands: Commands, textures: Res<TextureAssets>, config: Res<A
                         ..default()
                     },
                     camera_3d: Camera3d {
-                        clear_color: ClearColorConfig::Custom(Color::BLACK),
+                        clear_color: ClearColorConfig::None,
                         ..default()
                     },
                     ..default()
                 },
+                DUNGEON_CAMERA_LAYER,
                 DungeonCamera,
             ));
         });
@@ -95,16 +105,13 @@ pub fn setup(mut commands: Commands, textures: Res<TextureAssets>, config: Res<A
 
 pub fn update_viewport(
     mut camera3d: Query<&mut Camera, With<DungeonCamera>>,
-    textures: Res<TextureAssets>,
-    config: Res<Assets<UIConfig>>,
+    config: Res<ScaledUiConfig>,
     window: Query<&Window>,
 ) {
     if !config.is_changed() {
         return;
     }
     if let (Ok(mut camera), Ok(window)) = (camera3d.get_single_mut(), window.get_single()) {
-        let config: &UIConfig = config.get(textures.hud_config.id()).unwrap();
-
         match camera.viewport.as_mut() {
             Some(viewport) => {
                 viewport.physical_size = UVec2::new(
@@ -112,8 +119,8 @@ pub fn update_viewport(
                     config.dungeon_view_size.1 as u32,
                 );
                 viewport.physical_position = UVec2::new(
-                    (window.width() / 2. - config.size.0 / 2. + config.dongeon_view_margin.0)
-                        as u32,
+                    (window.width() / 2. - config.size.0 + config.dongeon_view_margin.0) as u32
+                        + config.padding as u32,
                     config.dongeon_view_margin.1 as u32,
                 );
             }

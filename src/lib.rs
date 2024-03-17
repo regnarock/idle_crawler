@@ -2,6 +2,7 @@
 
 mod audio;
 mod dungeon;
+mod labyrinth;
 mod loading;
 mod menu;
 mod ui;
@@ -15,6 +16,7 @@ use bevy::app::App;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use dungeon::DungeonPlugin;
+use labyrinth::DungeonLabyrinthPlugin;
 use ui::UIPlugin;
 
 // This example game uses States to separate logic
@@ -40,12 +42,13 @@ impl Plugin for GamePlugin {
             MenuPlugin,
             InternalAudioPlugin,
             DungeonPlugin,
+            DungeonLabyrinthPlugin,
             UIPlugin,
         ));
 
         #[cfg(debug_assertions)]
         {
-            app.add_plugins((FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin::default()));
+            //app.add_plugins((FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin::default()));
         }
     }
 }
