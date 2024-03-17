@@ -3,8 +3,8 @@
 
 use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
-use bevy::window::{PrimaryWindow, WindowResolution};
-use bevy::winit::{WinitSettings, WinitWindows};
+use bevy::window::PrimaryWindow;
+use bevy::winit::WinitWindows;
 use bevy::DefaultPlugins;
 use bevy_editor_pls::EditorPlugin;
 use std::io::Cursor;
@@ -30,7 +30,7 @@ fn main() {
             }),
             ..default()
         }))
-        .insert_resource(WinitSettings::desktop_app())
+        //.insert_resource(WinitSettings::desktop_app())
         .add_plugins(EditorPlugin::default())
         .add_plugins(GamePlugin)
         .add_systems(Startup, set_window_icon)

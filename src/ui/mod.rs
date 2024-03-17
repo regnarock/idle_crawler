@@ -103,8 +103,6 @@ pub fn update_ui_config_on_window_resize(
             let new_padding: f32 = window.width() - node.size().x;
             let config = config.get(textures.hud_config.id()).unwrap();
 
-            println!("new_padding {:?}", new_padding);
-
             commands.insert_resource(ScaledUiConfig {
                 size: (
                     config.size.0 * new_scale_ratio,
