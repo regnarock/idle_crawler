@@ -13,6 +13,8 @@ impl Plugin for Camera2DPlugin {
 #[derive(Component)]
 pub struct UiCamera;
 
+pub const UI_LAYER: RenderLayers = RenderLayers::layer(1);
+
 pub fn setup(mut commands: Commands) {
     commands.spawn((
         Camera2dBundle {
@@ -22,13 +24,14 @@ pub fn setup(mut commands: Commands) {
                 ..default()
             },
             camera: Camera {
-                // renders after / on top of the main camera
-                order: 1,
+                // renders on top of the other cameras
+                order: 10,
                 ..default()
             },
             ..default()
         },
-        RenderLayers::layer(1),
+        Name::new("hud_camera"),
+        UI_LAYER,
         UiCamera,
     ));
 }

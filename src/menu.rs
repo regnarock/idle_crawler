@@ -36,7 +36,7 @@ struct Menu;
 struct MenuStateMarker;
 
 fn setup_menu(mut commands: Commands, _textures: Res<TextureAssets>) {
-    info!("menu");
+    info!("menu setup");
     commands.spawn((Camera2dBundle::default(), MenuStateMarker));
     commands
         .spawn((

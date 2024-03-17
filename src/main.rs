@@ -3,8 +3,8 @@
 
 use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
-use bevy::window::{PrimaryWindow, WindowResolution};
-use bevy::winit::WinitWindows;
+use bevy::window::PrimaryWindow;
+use bevy::winit::{WinitSettings, WinitWindows};
 use bevy::DefaultPlugins;
 use bevy_editor_pls::EditorPlugin;
 use std::io::Cursor;
@@ -22,7 +22,6 @@ fn main() {
                 title: "Insectivore".to_string(),
                 // Bind to canvas included in `index.html`
                 canvas: Some("#bevy".to_owned()),
-                resolution: WindowResolution::new(1895.0, 1396.0),
                 // The canvas size is constrained in index.html and build/web/styles.css
                 fit_canvas_to_parent: true,
                 // Tells wasm not to override default event handling, like F5 and Ctrl+R
@@ -31,6 +30,7 @@ fn main() {
             }),
             ..default()
         }))
+        //.insert_resource(WinitSettings::desktop_app())
         .add_plugins(EditorPlugin::default())
         .add_plugins(GamePlugin)
         .add_systems(Startup, set_window_icon)
