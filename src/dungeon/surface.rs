@@ -2,6 +2,7 @@ use bevy::ecs::system::Command;
 use bevy::prelude::*;
 use std::f32::consts::{FRAC_PI_2, PI};
 
+use super::camera3d::DUNGEON_CAMERA_LAYER;
 use super::config::DungeonConfig;
 use super::vec_utils::{MoveBy, MoveDirection};
 use super::{Layout, Position};
@@ -112,6 +113,7 @@ impl Command for SpawnSurfaceCommand {
                 position: self.position_id,
             },
             Name::new(format!("{} Surface", surface_name)),
+            DUNGEON_CAMERA_LAYER,
         ));
     }
 }

@@ -12,7 +12,7 @@ use strum_macros::IntoStaticStr;
 use crate::GameState;
 
 use self::{
-    camera3d::Camera3DPlugin,
+    camera3d::{Camera3DPlugin, DUNGEON_CAMERA_LAYER},
     config::{ConfigPlugin, DungeonConfig},
     labyrinth::{Labyrinth, LabyrinthPlugin},
     surface::{SpawnSurfaceCommand, SurfacePlugin},
@@ -80,6 +80,7 @@ pub fn setup(mut commands: Commands, config: Res<DungeonConfig>, labyrinth: Res<
             transform: Transform::from_xyz(0., 0., config.size / 2.0 * -1.),
             ..Default::default()
         },
+        DUNGEON_CAMERA_LAYER,
         Name::new("Point Light"),
     ));
 
