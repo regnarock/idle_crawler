@@ -76,6 +76,7 @@ pub fn setup(mut commands: Commands, textures: Res<TextureAssets>, config: Res<A
     });
 }
 
+/// Listen to the creation of this resource to wait for UI initialization
 #[derive(Resource)]
 pub struct ScaledUiConfig {
     pub size: (f32, f32),
