@@ -13,7 +13,6 @@ use crate::menu::MenuPlugin;
 
 use bevy::app::App;
 #[cfg(debug_assertions)]
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use dungeon::DungeonPlugin;
 use labyrinth::DungeonLabyrinthPlugin;

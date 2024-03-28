@@ -17,10 +17,17 @@ pub struct Camera3DPlugin;
 
 impl Plugin for Camera3DPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Playing), setup)
+        app.add_systems(Update, setup.run_if(resource_added::<ScaledUiConfig>()))
             .add_systems(
                 Update,
-                (handle_input, update_viewport).run_if(in_state(GameState::Playing)),
+                (
+                    handle_input,
+                    update_viewport.run_if(
+                        resource_exists_and_changed::<ScaledUiConfig>()
+                            .and_then(not(resource_added::<ScaledUiConfig>())),
+                    ),
+                )
+                    .run_if(in_state(GameState::Playing)),
             );
     }
 }
@@ -106,12 +113,8 @@ pub fn setup(mut commands: Commands, textures: Res<TextureAssets>, config: Res<A
 pub fn update_viewport(
     mut camera3d: Query<&mut Camera, With<DungeonCamera>>,
     config: Res<ScaledUiConfig>,
-    window: Query<&Window>,
 ) {
-    // if !config.is_changed() {
-    //     return;
-    // }
-    if let (Ok(mut camera), Ok(window)) = (camera3d.get_single_mut(), window.get_single()) {
+    if let Ok(mut camera) = camera3d.get_single_mut() {
         match camera.viewport.as_mut() {
             Some(viewport) => {
                 viewport.physical_size = UVec2::new(
