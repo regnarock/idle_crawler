@@ -1,6 +1,9 @@
 mod camera2d;
 
-use bevy::{prelude::*, ui::widget::UiImageSize, window::WindowResized};
+use bevy::{
+    prelude::*,
+    render::render_resource::{Extent3d, TextureDimension, TextureFormat, TextureUsages},
+};
 
 use crate::{
     loading::{TextureAssets, UIConfig},
@@ -15,20 +18,65 @@ pub struct UIPlugin;
 impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(Camera2DPlugin)
-            .add_systems(OnEnter(GameState::Playing), setup)
-            .add_systems(
-                Update,
-                (update_ui_config_on_window_resize.run_if(on_event::<WindowResized>()))
-                    .run_if(in_state(GameState::Playing)),
-            );
+            .add_systems(OnEnter(GameState::Playing), setup);
     }
 }
+
+const ASPECT_RATIO_4_3: f32 = 1.3574498567;
 
 #[derive(Component)]
 pub struct HudImage;
 
-pub fn setup(mut commands: Commands, textures: Res<TextureAssets>, config: Res<Assets<UIConfig>>) {
+#[derive(Component)]
+pub struct MinimapImage;
+
+#[derive(Component)]
+pub struct DungeonViewImage;
+
+pub fn setup(
+    mut commands: Commands,
+    textures: Res<TextureAssets>,
+    config: Res<Assets<UIConfig>>,
+    mut images: ResMut<Assets<Image>>,
+) {
     let config = config.get(textures.hud_config.id()).unwrap();
+    // Create an empty image to hold the dungeon view
+    let mut dungeon_render_target = Image::new_fill(
+        Extent3d {
+            width: config.dungeon_view_size.0 as u32,
+            height: config.dungeon_view_size.1 as u32,
+            ..default()
+        },
+        TextureDimension::D2,
+        &[255; 4],
+        TextureFormat::Rgba8UnormSrgb,
+    );
+
+    // Create an empty image to hold the minimap
+    let mut minimap_render_target = Image::new_fill(
+        Extent3d {
+            width: config.minimap_size.0 as u32,
+            height: config.minimap_size.1 as u32,
+            ..default()
+        },
+        TextureDimension::D2,
+        &[255; 4],
+        TextureFormat::Rgba8UnormSrgb,
+    );
+
+    dungeon_render_target.texture_descriptor.usage =
+        TextureUsages::RENDER_ATTACHMENT | dungeon_render_target.texture_descriptor.usage;
+    let dungeon_handle = images.add(dungeon_render_target);
+
+    minimap_render_target.texture_descriptor.usage =
+        TextureUsages::RENDER_ATTACHMENT | minimap_render_target.texture_descriptor.usage;
+    let minimap_handle = images.add(minimap_render_target);
+
+    let ui_config = HUDRenderViews {
+        dungeon_handle: dungeon_handle.clone(),
+        minimap_handle: minimap_handle.clone(),
+    };
+    commands.insert_resource(ui_config);
 
     info!("ui node setup");
     commands
@@ -48,85 +96,86 @@ pub fn setup(mut commands: Commands, textures: Res<TextureAssets>, config: Res<A
             UI_LAYER,
         ))
         // Add the HUD withing the UI node using Image Bundle
-        .with_children(|parent| {
-            parent.spawn((
-                ImageBundle {
-                    style: Style {
-                        min_height: Val::Percent(100.0),
-                        max_width: Val::Percent(100.0),
-                        aspect_ratio: Some(1.3574498567),
+        .with_children(|ui_root_node| {
+            ui_root_node
+                .spawn((
+                    ImageBundle {
+                        style: Style {
+                            min_height: Val::Percent(100.0),
+                            max_width: Val::Percent(100.0),
+                            aspect_ratio: Some(ASPECT_RATIO_4_3),
+                            // align_items: AlignItems::Center,
+                            // justify_content: JustifyContent::Center,
+                            ..default()
+                        },
+                        image: UiImage::new(textures.hud.clone()),
                         ..default()
                     },
-                    image: UiImage::new(textures.hud.clone()),
-                    ..default()
-                },
-                UI_LAYER,
-                HudImage,
-                Name::new("hud_node"),
-            ));
-        });
+                    UI_LAYER,
+                    HudImage,
+                    Name::new("hud_image_node"),
+                ))
+                .with_children(|hud_image_node| {
+                    // Add the dungeon view image
+                    let left = config.dongeon_view_margin.0 * 100. / config.size.0;
+                    let top =
+                        config.dongeon_view_margin.1 / ASPECT_RATIO_4_3 * 100. / config.size.1;
 
-    commands.insert_resource(ScaledUiConfig {
-        size: config.size,
-        dongeon_view_margin: config.dongeon_view_margin,
-        dungeon_view_size: config.dungeon_view_size,
-        minimap_margin: config.minimap_margin,
-        minimap_size: config.minimap_size,
-        padding: 0.,
-    });
+                    hud_image_node.spawn((
+                        ImageBundle {
+                            style: Style {
+                                width: Val::Percent(
+                                    (config.dungeon_view_size.0 * 100.) / config.size.0,
+                                ),
+                                height: Val::Percent(
+                                    (config.dungeon_view_size.1 * 100.) / config.size.1,
+                                ),
+                                margin: UiRect::percent(left, 0., top, 0.),
+                                position_type: PositionType::Absolute,
+                                ..default()
+                            },
+                            image: UiImage::new(dungeon_handle.clone()),
+                            ..default()
+                        },
+                        UI_LAYER,
+                        DungeonViewImage,
+                        Name::new("dungeon_view_node"),
+                    ));
+                })
+                .with_children(|hud_image_node| {
+                    // Add the minimap image
+                    let left = (config.dongeon_view_margin.0
+                        + config.dungeon_view_size.0
+                        + config.minimap_margin.0)
+                        * 100.
+                        / config.size.0;
+                    let top = config.minimap_margin.1 / ASPECT_RATIO_4_3 * 100. / config.size.1;
+
+                    hud_image_node.spawn((
+                        ImageBundle {
+                            style: Style {
+                                width: Val::Percent((config.minimap_size.0 * 100.) / config.size.0),
+                                height: Val::Percent(
+                                    (config.minimap_size.1 * 100.) / config.size.1,
+                                ),
+                                margin: UiRect::percent(left, 0., top, 0.),
+                                position_type: PositionType::Absolute,
+                                ..default()
+                            },
+                            image: UiImage::new(minimap_handle.clone()),
+                            ..default()
+                        },
+                        UI_LAYER,
+                        MinimapImage,
+                        Name::new("minimap_node"),
+                    ));
+                });
+        });
 }
 
 /// Listen to the creation of this resource to wait for UI initialization
 #[derive(Resource)]
-pub struct ScaledUiConfig {
-    pub size: (f32, f32),
-    pub dongeon_view_margin: (f32, f32),
-    pub dungeon_view_size: (f32, f32),
-    pub minimap_margin: (f32, f32),
-    pub minimap_size: (f32, f32),
-    pub padding: f32,
-}
-
-pub fn update_ui_config_on_window_resize(
-    mut commands: Commands,
-    textures: Res<TextureAssets>,
-    config: Res<Assets<UIConfig>>,
-    mut er: EventReader<WindowResized>,
-    hud: Query<(&UiImageSize, &Node), With<HudImage>>,
-    window: Query<&Window>,
-) {
-    for _ in er.read() {
-        if let (Ok((ui_image_size, node)), Ok(window)) = (hud.get_single(), window.get_single()) {
-            // Calculate the UI scale ratio by dividing the real HUD image width by the dynamically calculated width
-            // FIXME: the scale ratio is not correct, we need to find a way to calculate it correctly and remove the * 2.0
-            let new_scale_ratio = node.size().x / ui_image_size.size().x * 2.;
-
-            let new_padding: f32 = window.width() - node.size().x;
-            let config = config.get(textures.hud_config.id()).unwrap();
-
-            commands.insert_resource(ScaledUiConfig {
-                size: (
-                    config.size.0 * new_scale_ratio,
-                    config.size.1 * new_scale_ratio,
-                ),
-                dongeon_view_margin: (
-                    config.dongeon_view_margin.0 * new_scale_ratio,
-                    config.dongeon_view_margin.1 * new_scale_ratio,
-                ),
-                dungeon_view_size: (
-                    config.dungeon_view_size.0 * new_scale_ratio,
-                    config.dungeon_view_size.1 * new_scale_ratio,
-                ),
-                minimap_margin: (
-                    config.minimap_margin.0 * new_scale_ratio,
-                    config.minimap_margin.1 * new_scale_ratio,
-                ),
-                minimap_size: (
-                    config.minimap_size.0 * new_scale_ratio,
-                    config.minimap_size.1 * new_scale_ratio,
-                ),
-                padding: new_padding,
-            });
-        }
-    }
+pub struct HUDRenderViews {
+    pub dungeon_handle: Handle<Image>,
+    pub minimap_handle: Handle<Image>,
 }

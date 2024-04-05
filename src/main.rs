@@ -4,7 +4,7 @@
 use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use bevy::winit::{WinitSettings, WinitWindows};
+use bevy::winit::WinitWindows;
 use bevy::DefaultPlugins;
 use bevy_editor_pls::EditorPlugin;
 use std::io::Cursor;

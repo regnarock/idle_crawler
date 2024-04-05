@@ -20,7 +20,7 @@ pub fn setup(mut commands: Commands) {
         Camera2dBundle {
             camera_2d: Camera2d {
                 // no "background color", we need to see the main camera's output
-                clear_color: ClearColorConfig::None,
+                clear_color: ClearColorConfig::Custom(Color::GRAY),
                 ..default()
             },
             camera: Camera {
