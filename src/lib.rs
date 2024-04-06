@@ -12,7 +12,6 @@ use crate::loading::LoadingPlugin;
 use crate::menu::MenuPlugin;
 
 use bevy::app::App;
-#[cfg(debug_assertions)]
 use bevy::prelude::*;
 use dungeon::DungeonPlugin;
 use labyrinth::DungeonLabyrinthPlugin;
